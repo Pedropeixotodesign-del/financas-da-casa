@@ -1293,9 +1293,9 @@ function openForm({title,fields,submit,onSubmit,danger,noCommit}){
   if(danger)$("#m-danger").addEventListener("click",()=>{danger.onClick();closeModal();if(!noCommit)commit()});
   root.querySelectorAll("[data-close]").forEach(el=>el.addEventListener("click",ev=>{if(ev.target===el)closeModal()}));
 }
-function openMenu(title,sub,items){
+function openMenu(title,sub,items,icon){
   const root=$("#fx-sheets");
-  root.innerHTML=`<div class="fx-sheet-bg" data-close="1"><div class="fx-sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}" style="display:block;visibility:visible;opacity:1;position:relative;z-index:1"><div class="menu-sheet"><div class="menu-h"><span class="menu-av">${ic("pessoal")}</span><div style="min-width:0"><h3>${esc(title)}</h3>${sub?`<p>${esc(sub)}</p>`:""}</div></div>
+  root.innerHTML=`<div class="fx-sheet-bg" data-close="1"><div class="fx-sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}" style="display:block;visibility:visible;opacity:1;position:relative;z-index:1"><div class="menu-sheet"><div class="menu-h"><span class="menu-av">${ic(icon||"pessoal")}</span><div style="min-width:0"><h3>${esc(title)}</h3>${sub?`<p>${esc(sub)}</p>`:""}</div></div>
     ${items.map((it,i)=>`<button type="button" class="menu-item ${it.danger?"danger":""}" data-mi="${i}"><span class="menu-ic" style="${it.bg?`background:${it.bg};color:#fff`:""}">${ic(it.icon)}</span><span style="min-width:0;flex:1"><b>${esc(it.label)}</b>${it.sub?`<small>${esc(it.sub)}</small>`:""}</span>${it.danger?"":ic("arrow","chev")}</button>`).join("")}</div></div></div>`;
   root.querySelectorAll("[data-mi]").forEach(b=>b.addEventListener("click",()=>{const it=items[+b.dataset.mi];closeModal();it.run()}));
   root.querySelector(".fx-sheet-bg").addEventListener("click",ev=>{if(ev.target===ev.currentTarget)closeModal()});
@@ -1330,7 +1330,7 @@ function expForm(e){
     fields:[{id:"desc",label:"Descrição",value:e.desc,req:true,ph:"Ex.: Luz, Tênis, Geladeira"},{id:"cat",label:"Categoria",type:"select",value:e.cat,options:catOpts()},...monthField,
       ...(isNew?[{id:"rep",label:"Repetir",type:"select",value:"1",options:REP_OPTS},{id:"n",label:"Quantas vezes? (no recorrente, deixe vazio para não ter fim)",type:"number",value:""}]:[]),
       {type:"row",items:[{id:"planned",label:isNew?"Valor (de cada parcela ou mês)":"Previsto",type:"money",value:e.planned},{id:"paid",label:isNew?"Já pago neste mês":"Pago",type:"money",value:e.paid}]}],
-    danger:isNew?null:p?(p.mode==="rec"?{label:"Parar de repetir daqui pra frente",onClick:()=>{const u=withUndo("Despesa recorrente encerrada");removePurchase(p.id,m.id);u()}}:{label:"Excluir compra (todas as parcelas)",onClick:()=>{const u=withUndo("Compra parcelada excluída");removePurchase(p.id);u()}}):{label:"Excluir",onClick:()=>{const u=withUndo("Despesa excluída");m.expenses=m.expenses.filter(x=>x.id!==e.id);u()}},
+    danger:isNew?null:e.inst?{label:"Apagar",onClick:()=>{setTimeout(()=>askDelete("exp",m,e),0)}}:{label:"Excluir",onClick:()=>{const u=withUndo("Despesa excluída");m.expenses=m.expenses.filter(x=>x.id!==e.id);u()}},
     onSubmit:v=>{const o={desc:v.desc.trim(),cat:v.cat,planned:parseMoney(v.planned),paid:parseMoney(v.paid)};
       if(isNew){const tm=S.months.find(x=>x.id===v.month)||m;
         if(v.rep&&v.rep!=="1")return newSeries("exp",v.rep,o.desc,o.cat,o.planned,v.n,tm.id,o.paid);
@@ -1340,7 +1340,7 @@ function incForm(i){
   const m=curMonth();const isNew=!i;i=i||{source:"",planned:0,received:0};
   openForm({title:isNew?"Nova receita":i.inst?(i.inst.rec?"Editar receita (repete todo mês)":"Editar parcela "+i.inst.k+"/"+i.inst.n):"Editar receita",fields:[{id:"source",label:"Fonte",value:i.source,req:true,ph:"Ex.: Salário, freela"},...(isNew?[{id:"month",label:"Mês",type:"select",value:m.id,options:S.months.map(x=>[x.id,mLong(x.id)])},{id:"rep",label:"Repetir",type:"select",value:"1",options:REP_OPTS},{id:"n",label:"Quantas vezes? (no recorrente, deixe vazio para não ter fim)",type:"number",value:""}]:[]),
     {type:"row",items:[{id:"planned",label:isNew?"Valor (de cada parcela ou mês)":"Previsto",type:"money",value:i.planned},{id:"received",label:isNew?"Já recebido neste mês":"Recebido",type:"money",value:i.received}]}],
-    danger:isNew?null:i.inst?{label:i.inst.rec?"Parar de repetir daqui pra frente":"Excluir todas as parcelas",onClick:()=>{const u=withUndo(i.inst.rec?"Receita recorrente encerrada":"Parcelas excluídas");removePurchase(i.inst.gid,i.inst.rec?m.id:null);u()}}:{label:"Excluir",onClick:()=>{const u=withUndo("Receita excluída");m.incomes=m.incomes.filter(x=>x.id!==i.id);u()}},
+    danger:isNew?null:i.inst?{label:"Apagar",onClick:()=>{setTimeout(()=>askDelete("inc",m,i),0)}}:{label:"Excluir",onClick:()=>{const u=withUndo("Receita excluída");m.incomes=m.incomes.filter(x=>x.id!==i.id);u()}},
     onSubmit:v=>{const o={source:v.source.trim(),planned:parseMoney(v.planned),received:parseMoney(v.received)};if(isNew){const tm=S.months.find(x=>x.id===v.month)||m;if(v.rep&&v.rep!=="1")return newSeries("inc",v.rep,o.source,null,o.planned,v.n,tm.id,o.received);tm.incomes.push({id:uid("i"),...o});if(tm!==m)toast("Receita adicionada em "+mLong(tm.id))}else Object.assign(m.incomes.find(x=>x.id===i.id),o)}});
 }
 function nextInstallment(desc){
@@ -1366,10 +1366,10 @@ const handlers={
   "f-cat"(el){fCat=el.dataset.v;render()},
   "add-exp"(){expForm()},
   "edit-exp"(el){if(readOnly)return;expForm(curMonth().expenses.find(e=>e.id===el.dataset.id))},
-  "del-exp"(el){const m=curMonth();const e=m.expenses.find(x=>x.id===el.dataset.id);const u=withUndo("“"+e.desc+"” excluída");m.expenses=m.expenses.filter(x=>x!==e);u();commit()},
+  "del-exp"(el){const m=curMonth();const e=m.expenses.find(x=>x.id===el.dataset.id);if(e)askDelete("exp",m,e)},
   side(el){mSide=el.dataset.v;render()},
   receive(el){const i=curMonth().incomes.find(x=>x.id===el.dataset.id);i.received=i.planned;commit();toast("“"+i.source+"” marcada como recebida")},
-  "del-inc"(el){const m=curMonth();const i=m.incomes.find(x=>x.id===el.dataset.id);const u=withUndo("“"+i.source+"” excluída");m.incomes=m.incomes.filter(x=>x!==i);u();commit()},
+  "del-inc"(el){const m=curMonth();const i=m.incomes.find(x=>x.id===el.dataset.id);if(i)askDelete("inc",m,i)},
   pay(el){const e=curMonth().expenses.find(x=>x.id===el.dataset.id);e.paid=e.planned;commit();toast("“"+e.desc+"” marcada como paga")},
   "add-inc"(){incForm()},
   "edit-inc"(el){incForm(curMonth().incomes.find(i=>i.id===el.dataset.id))},
@@ -2347,9 +2347,20 @@ function newSeries(kind,mode,desc,cat,value,nRaw,start,firstPaid){
   if(kind==="exp"&&mode==="inst"){const base=S.debts.base||TODAY_M;S.debts.items.push({id:gid,name:desc+" (parcelado)",installment:value,currentAtBase:1-diffM(base,start),total:p.n,purchase:true})}
   setTimeout(()=>toast(mode==="inst"?p.n+"x de "+brl(value)+" a partir de "+mLong(start):brl(value)+" todo mês a partir de "+mLong(start)+(p.n?" por "+p.n+" meses":"")),0);
 }
+function askDelete(kind,m,row){
+  const name=kind==="exp"?row.desc:row.source;
+  const onlyThis=()=>{const u=withUndo("“"+name+"” apagada de "+mLong(m.id));if(kind==="exp")m.expenses=m.expenses.filter(x=>x.id!==row.id);else m.incomes=m.incomes.filter(x=>x.id!==row.id);u();commit()};
+  if(!row.inst){onlyThis();return}
+  const rec=!!row.inst.rec;
+  openMenu("Apagar “"+name+"”",rec?"Repete todo mês":"Parcela "+row.inst.k+" de "+row.inst.n,[
+    {icon:"trash",label:"Só deste mês",sub:"Os outros meses continuam como estão",run:onlyThis},
+    {icon:"trash",label:"Deste mês em diante",sub:rec?"Para de repetir a partir de "+mLong(m.id):"Cancela esta parcela e as próximas",danger:true,run:()=>{const u=withUndo((rec?"Recorrência encerrada":"Parcelas canceladas")+" a partir de "+mLong(m.id));removePurchase(row.inst.gid,m.id);u();commit()}}],"trash");
+}
 function removePurchase(gid,fromM){
   const sp=(S.purchases||[]).find(p=>p.id===gid);
-  if(sp&&sp.mode==="rec"&&fromM){sp.end=addM(fromM,-1);S.months.forEach(m=>{if(m.id<fromM)return;m.expenses=m.expenses.filter(e=>!(e.inst&&e.inst.gid===gid));m.incomes=m.incomes.filter(i=>!(i.inst&&i.inst.gid===gid))});if(sp.end<sp.start)S.purchases=S.purchases.filter(p=>p!==sp);return}
+  if(sp&&fromM&&diffM(sp.start,fromM)>=1){const k=diffM(sp.start,fromM)+1;
+    if((sp.mode||"inst")==="rec")sp.end=addM(fromM,-1);else{if(sp.value==null)sp.value=instValue(sp,1);sp.n=k-1;const d=S.debts.items.find(d=>d.id===gid);if(d)d.total=sp.n}
+    S.months.forEach(m=>{if(m.id<fromM)return;m.expenses=m.expenses.filter(e=>!(e.inst&&e.inst.gid===gid));m.incomes=m.incomes.filter(i=>!(i.inst&&i.inst.gid===gid))});return}
   S.purchases=(S.purchases||[]).filter(p=>p.id!==gid);
   S.months.forEach(m=>{m.expenses=m.expenses.filter(e=>!(e.inst&&e.inst.gid===gid));m.incomes=m.incomes.filter(i=>!(i.inst&&i.inst.gid===gid))});
   S.debts.items=S.debts.items.filter(d=>d.id!==gid);
