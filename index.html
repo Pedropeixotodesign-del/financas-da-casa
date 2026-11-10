@@ -1144,7 +1144,7 @@ function viewBudget(){
   const byCat=usedCats.map(c=>({c,v:mx.filter(e=>e.cat===c.id).reduce((t,e)=>t+(+e.planned||0),0),p:mx.filter(e=>e.cat===c.id).reduce((t,e)=>t+(+e.paid||0),0)})).sort((a,b)=>b.v-a.v);
   const dis=readOnly?"disabled":"";
   const rows=shown.map(r=>{if(r.v)return ghostRow(r.e,m,dis);const falta=(+r.e.planned||0)-(+r.e.paid||0);return `<tr>
-    <td><div class="desc"><span class="cico" style="background:${catGrad(r.c)}">${ic(r.c.icon)}</span><div style="min-width:0"><b>${esc(r.e.desc)}</b><small>${esc(r.c.name)}${r.e.inst?" · parcelado":""}${falta>0&&r.st==="Parcial"?` · falta ${brl(falta)}`:""}</small></div></div></td>
+    <td><div class="desc"><span class="cico" style="background:${catGrad(r.c)}">${ic(r.c.icon)}</span><div style="min-width:0"><b>${esc(r.e.desc)}</b><small>${esc(r.c.name)}${r.e.inst?(r.e.inst.rec?" · todo mês":" · parcelado"):""}${falta>0&&r.st==="Parcial"?` · falta ${brl(falta)}`:""}</small></div></div></td>
     <td class="r"><input class="cell-in" id="p-${m.id}-${r.e.id}" data-edit="planned" data-id="${r.e.id}" value="${moneyIn(r.e.planned)}" inputmode="decimal" aria-label="Previsto ${esc(r.e.desc)}" ${dis}></td>
     <td class="r"><input class="cell-in" id="d-${m.id}-${r.e.id}" data-edit="paid" data-id="${r.e.id}" value="${moneyIn(r.e.paid)}" inputmode="decimal" aria-label="Pago ${esc(r.e.desc)}" ${dis}></td>
     <td>${statusPill(r.st)}</td>
@@ -1153,7 +1153,7 @@ function viewBudget(){
   const incStatus=i=>{const p=+i.planned||0,r=+i.received||0;return r>=p&&p>0?"Recebido":r>0?"Parcial":"Pendente"};
   const incPill=st=>`<span class="pill ${st==="Recebido"?"ok":st==="Parcial"?"warn":"idle"}">${st}</span>`;
   const incRows=m.incomes.map(i=>{const st=incStatus(i);const falta=(+i.planned||0)-(+i.received||0);return `<div class="inc">
-    <div class="inc-h"><span class="cico" style="background:var(--grad-pos)">${ic("down")}</span><div style="min-width:0;flex:1"><div class="t">${esc(i.source)}</div><div class="s num" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px">${incPill(st)}${falta>0?"falta "+brl(falta):""}</div></div>
+    <div class="inc-h"><span class="cico" style="background:var(--grad-pos)">${ic("down")}</span><div style="min-width:0;flex:1"><div class="t">${esc(i.source)}${i.inst&&i.inst.rec?' <span class="pill plain idle" style="vertical-align:1px">todo mês</span>':""}</div><div class="s num" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px">${incPill(st)}${falta>0?"falta "+brl(falta):""}</div></div>
       ${readOnly?"":`<div class="acts">${st!=="Recebido"?`<button class="check" data-act="receive" data-id="${i.id}" title="Marcar como recebido" aria-label="Marcar ${esc(i.source)} como recebido">${ic("check")}</button>`:""}<button data-act="edit-inc" data-id="${i.id}" title="Editar" aria-label="Editar ${esc(i.source)}">${ic("edit")}</button><button data-act="del-inc" data-id="${i.id}" title="Excluir" aria-label="Excluir ${esc(i.source)}">${ic("trash")}</button></div>`}</div>
     <div class="inc-v"><label><span>Previsto</span><input class="cell-in" id="ip-${m.id}-${i.id}" data-edit="inc-planned" data-inc="${i.id}" value="${moneyIn(i.planned)}" inputmode="decimal" aria-label="Previsto de ${esc(i.source)}" ${dis}></label>
       <label><span>Recebido</span><input class="cell-in" id="r-${m.id}-${i.id}" data-edit="received" data-inc="${i.id}" value="${moneyIn(i.received)}" inputmode="decimal" aria-label="Recebido de ${esc(i.source)}" ${dis}></label></div></div>`}).join("");
@@ -1326,22 +1326,22 @@ function expForm(e){
   const m=curMonth();const isNew=!e;e=e||{desc:"",cat:(S.categories[0]||{}).id,planned:0,paid:0};
   const monthField=isNew?[{id:"month",label:"Mês",type:"select",value:m.id,options:S.months.map(x=>[x.id,mLong(x.id)])}]:[];
   const p=e.inst?(S.purchases||[]).find(x=>x.id===e.inst.gid):null;
-  openForm({title:isNew?"Nova despesa":p?"Editar parcela "+e.inst.k+"/"+e.inst.n:"Editar despesa",submit:isNew?"Adicionar":"Salvar",
+  openForm({title:isNew?"Nova despesa":p?(p.mode==="rec"?"Editar despesa (repete todo mês)":"Editar parcela "+e.inst.k+"/"+e.inst.n):"Editar despesa",submit:isNew?"Adicionar":"Salvar",
     fields:[{id:"desc",label:"Descrição",value:e.desc,req:true,ph:"Ex.: Luz, Tênis, Geladeira"},{id:"cat",label:"Categoria",type:"select",value:e.cat,options:catOpts()},...monthField,
-      ...(isNew?[{id:"n",label:"Em quantas vezes? (1 = à vista)",type:"number",value:1}]:[]),
-      {type:"row",items:[{id:"planned",label:isNew?"Valor (total da compra)":"Previsto",type:"money",value:e.planned},{id:"paid",label:isNew?"Já pago":"Pago",type:"money",value:e.paid}]}],
-    danger:isNew?null:p?{label:"Excluir compra (todas as parcelas)",onClick:()=>{const u=withUndo("Compra parcelada excluída");removePurchase(p.id);u()}}:{label:"Excluir",onClick:()=>{const u=withUndo("Despesa excluída");m.expenses=m.expenses.filter(x=>x.id!==e.id);u()}},
+      ...(isNew?[{id:"rep",label:"Repetir",type:"select",value:"1",options:REP_OPTS},{id:"n",label:"Quantas vezes? (no recorrente, deixe vazio para não ter fim)",type:"number",value:""}]:[]),
+      {type:"row",items:[{id:"planned",label:isNew?"Valor (de cada parcela ou mês)":"Previsto",type:"money",value:e.planned},{id:"paid",label:isNew?"Já pago neste mês":"Pago",type:"money",value:e.paid}]}],
+    danger:isNew?null:p?(p.mode==="rec"?{label:"Parar de repetir daqui pra frente",onClick:()=>{const u=withUndo("Despesa recorrente encerrada");removePurchase(p.id,m.id);u()}}:{label:"Excluir compra (todas as parcelas)",onClick:()=>{const u=withUndo("Compra parcelada excluída");removePurchase(p.id);u()}}):{label:"Excluir",onClick:()=>{const u=withUndo("Despesa excluída");m.expenses=m.expenses.filter(x=>x.id!==e.id);u()}},
     onSubmit:v=>{const o={desc:v.desc.trim(),cat:v.cat,planned:parseMoney(v.planned),paid:parseMoney(v.paid)};
-      if(isNew){const tm=S.months.find(x=>x.id===v.month)||m;const n=Math.max(1,Math.min(72,parseInt(v.n)||1));
-        if(n>1){if(!o.planned){toast("Informe o valor total da compra.");return false}addPurchase(o,tm.id,n,o.paid);setTimeout(()=>toast(n+"x de "+brl(instValue({total:o.planned,n},1))+" a partir de "+mLong(tm.id)),0);return}
+      if(isNew){const tm=S.months.find(x=>x.id===v.month)||m;
+        if(v.rep&&v.rep!=="1")return newSeries("exp",v.rep,o.desc,o.cat,o.planned,v.n,tm.id,o.paid);
         tm.expenses.push({id:uid("e"),...o});if(tm!==m)toast("Despesa adicionada em "+mLong(tm.id))}else Object.assign(m.expenses.find(x=>x.id===e.id),o)}});
 }
 function incForm(i){
   const m=curMonth();const isNew=!i;i=i||{source:"",planned:0,received:0};
-  openForm({title:isNew?"Nova receita":"Editar receita",fields:[{id:"source",label:"Fonte",value:i.source,req:true,ph:"Ex.: Salário, freela"},...(isNew?[{id:"month",label:"Mês",type:"select",value:m.id,options:S.months.map(x=>[x.id,mLong(x.id)])}]:[]),
-    {type:"row",items:[{id:"planned",label:"Previsto",type:"money",value:i.planned},{id:"received",label:"Recebido",type:"money",value:i.received}]}],
-    danger:isNew?null:{label:"Excluir",onClick:()=>{const u=withUndo("Receita excluída");m.incomes=m.incomes.filter(x=>x.id!==i.id);u()}},
-    onSubmit:v=>{const o={source:v.source.trim(),planned:parseMoney(v.planned),received:parseMoney(v.received)};if(isNew){const tm=S.months.find(x=>x.id===v.month)||m;tm.incomes.push({id:uid("i"),...o});if(tm!==m)toast("Receita adicionada em "+mLong(tm.id))}else Object.assign(m.incomes.find(x=>x.id===i.id),o)}});
+  openForm({title:isNew?"Nova receita":i.inst?(i.inst.rec?"Editar receita (repete todo mês)":"Editar parcela "+i.inst.k+"/"+i.inst.n):"Editar receita",fields:[{id:"source",label:"Fonte",value:i.source,req:true,ph:"Ex.: Salário, freela"},...(isNew?[{id:"month",label:"Mês",type:"select",value:m.id,options:S.months.map(x=>[x.id,mLong(x.id)])},{id:"rep",label:"Repetir",type:"select",value:"1",options:REP_OPTS},{id:"n",label:"Quantas vezes? (no recorrente, deixe vazio para não ter fim)",type:"number",value:""}]:[]),
+    {type:"row",items:[{id:"planned",label:isNew?"Valor (de cada parcela ou mês)":"Previsto",type:"money",value:i.planned},{id:"received",label:isNew?"Já recebido neste mês":"Recebido",type:"money",value:i.received}]}],
+    danger:isNew?null:i.inst?{label:i.inst.rec?"Parar de repetir daqui pra frente":"Excluir todas as parcelas",onClick:()=>{const u=withUndo(i.inst.rec?"Receita recorrente encerrada":"Parcelas excluídas");removePurchase(i.inst.gid,i.inst.rec?m.id:null);u()}}:{label:"Excluir",onClick:()=>{const u=withUndo("Receita excluída");m.incomes=m.incomes.filter(x=>x.id!==i.id);u()}},
+    onSubmit:v=>{const o={source:v.source.trim(),planned:parseMoney(v.planned),received:parseMoney(v.received)};if(isNew){const tm=S.months.find(x=>x.id===v.month)||m;if(v.rep&&v.rep!=="1")return newSeries("inc",v.rep,o.source,null,o.planned,v.n,tm.id,o.received);tm.incomes.push({id:uid("i"),...o});if(tm!==m)toast("Receita adicionada em "+mLong(tm.id))}else Object.assign(m.incomes.find(x=>x.id===i.id),o)}});
 }
 function nextInstallment(desc){
   const r=/(\d+)\s*\/\s*(\d+)\s*$/.exec(desc);if(!r)return {desc,keep:true};
@@ -2315,13 +2315,17 @@ function ghostMRow(g){return `<button class="mitem" data-act="go-ghost"><span cl
 function monthTemplate(id){
   const prev=S.months.filter(x=>x.id<id).slice(-1)[0];
   const exps=[];if(prev)prev.expenses.forEach(e=>{if(e.inst)return;const n=nextInstallment(e.desc);if(n.keep)exps.push({id:uid("e"),desc:n.desc,cat:e.cat,planned:e.planned,paid:0})});
-  return {id,closed:false,expenses:exps,incomes:prev?prev.incomes.map(i=>({id:uid("i"),source:i.source,planned:i.planned,received:0})):[]};
+  return {id,closed:false,expenses:exps,incomes:prev?prev.incomes.filter(i=>!i.inst).map(i=>({id:uid("i"),source:i.source,planned:i.planned,received:0})):[]};
 }
 function purchaseRowsFor(m){
-  (S.purchases||[]).forEach(p=>{const k=diffM(p.start,m.id)+1;if(k<1||k>p.n)return;if(m.expenses.some(e=>e.inst&&e.inst.gid===p.id&&e.inst.k===k))return;
-    m.expenses.push({id:uid("e"),desc:p.desc+" "+k+"/"+p.n,cat:p.cat,planned:instValue(p,k),paid:0,inst:{gid:p.id,k,n:p.n}})});
+  (S.purchases||[]).forEach(p=>{const kind=p.kind||"exp",mode=p.mode||"inst";const k=diffM(p.start,m.id)+1;if(k<1)return;
+    if(mode==="inst"&&k>p.n)return;if(mode==="rec"&&((p.n&&k>p.n)||(p.end&&m.id>p.end)))return;
+    const list=kind==="inc"?m.incomes:m.expenses;if(list.some(x=>x.inst&&x.inst.gid===p.id&&x.inst.k===k))return;
+    const label=mode==="inst"?p.desc+" "+k+"/"+p.n:p.desc;const inst={gid:p.id,k,n:p.n||null,rec:mode==="rec"};
+    if(kind==="inc")list.push({id:uid("i"),source:label,planned:instValue(p,k),received:0,inst});
+    else list.push({id:uid("e"),desc:label,cat:p.cat,planned:instValue(p,k),paid:0,inst})});
 }
-function instValue(p,k){const base=Math.floor(p.total/p.n*100)/100;return k===p.n?Math.round((p.total-base*(p.n-1))*100)/100:base}
+function instValue(p,k){if(p.value!=null)return p.value;const base=Math.floor(p.total/p.n*100)/100;return k===p.n?Math.round((p.total-base*(p.n-1))*100)/100:base}
 function addPurchase(o,startM,n,paidFirst){
   const gid=uid("p");const p={id:gid,desc:o.desc,cat:o.cat,total:o.planned,n,start:startM};
   S.purchases=S.purchases||[];S.purchases.push(p);
@@ -2331,9 +2335,23 @@ function addPurchase(o,startM,n,paidFirst){
   S.debts.items.push({id:gid,name:o.desc+" (parcelado)",installment:instValue(p,1),currentAtBase:1-diffM(base,startM),total:n,purchase:true});
   return p;
 }
-function removePurchase(gid){
+const REP_OPTS=[["1","Só neste mês"],["inst","Parcelado"],["rec","Todo mês (recorrente)"]];
+function newSeries(kind,mode,desc,cat,value,nRaw,start,firstPaid){
+  const n=parseInt(nRaw)||0;
+  if(!value){toast(mode==="inst"?"Informe o valor de cada parcela.":"Informe o valor de cada mês.");return false}
+  if(mode==="inst"&&n<2){toast("Diga em quantas parcelas (2 ou mais).");return false}
+  const gid=uid("p");const p={id:gid,kind,mode,desc,cat,value,n:mode==="inst"?Math.min(72,n):(n>0?Math.min(120,n):null),start};
+  S.purchases=S.purchases||[];S.purchases.push(p);S.months.forEach(m=>purchaseRowsFor(m));
+  const fm=S.months.find(x=>x.id===start);
+  if(fm&&firstPaid){const list=kind==="inc"?fm.incomes:fm.expenses;const r=list.find(x=>x.inst&&x.inst.gid===gid&&x.inst.k===1);if(r){if(kind==="inc")r.received=firstPaid;else r.paid=Math.min(firstPaid,r.planned)}}
+  if(kind==="exp"&&mode==="inst"){const base=S.debts.base||TODAY_M;S.debts.items.push({id:gid,name:desc+" (parcelado)",installment:value,currentAtBase:1-diffM(base,start),total:p.n,purchase:true})}
+  setTimeout(()=>toast(mode==="inst"?p.n+"x de "+brl(value)+" a partir de "+mLong(start):brl(value)+" todo mês a partir de "+mLong(start)+(p.n?" por "+p.n+" meses":"")),0);
+}
+function removePurchase(gid,fromM){
+  const sp=(S.purchases||[]).find(p=>p.id===gid);
+  if(sp&&sp.mode==="rec"&&fromM){sp.end=addM(fromM,-1);S.months.forEach(m=>{if(m.id<fromM)return;m.expenses=m.expenses.filter(e=>!(e.inst&&e.inst.gid===gid));m.incomes=m.incomes.filter(i=>!(i.inst&&i.inst.gid===gid))});if(sp.end<sp.start)S.purchases=S.purchases.filter(p=>p!==sp);return}
   S.purchases=(S.purchases||[]).filter(p=>p.id!==gid);
-  S.months.forEach(m=>{m.expenses=m.expenses.filter(e=>!(e.inst&&e.inst.gid===gid))});
+  S.months.forEach(m=>{m.expenses=m.expenses.filter(e=>!(e.inst&&e.inst.gid===gid));m.incomes=m.incomes.filter(i=>!(i.inst&&i.inst.gid===gid))});
   S.debts.items=S.debts.items.filter(d=>d.id!==gid);
 }
 
