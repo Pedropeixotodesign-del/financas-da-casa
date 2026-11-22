@@ -1137,7 +1137,7 @@ function viewOverview(){
   const now=rn?rn.now:cash.total;
   B.saldo=kpi({cls:"hero",t:"Saldo em conta",s:rn?"O que tem agora · o que entrou menos o que já saiu":"Sobra do mês passado + resultado do mês",ico:"wallet",
     v:`<span data-count="${now}">${brl(now)}</span>`,
-    extra:`<div class="mini"><div><span>Fim de ${mname||"mês"} (previsto)</span><b class="num">${brl(cash.total)}</b></div><div><span>Nas caixinhas</span><b class="num">${brl(bt)}</b></div></div>${xm&&!xm.m.closed&&cash.total<0?`<div class="hwarn">${ic("target")}<span>No ritmo previsto, ${mname} fecha negativo${xm.bx?` · as caixinhas levam ${brl(xm.bx)} este mês`:""}.</span></div>`:""}`,
+    extra:`<div class="mini"><div><span>Fim de ${mname||"mês"} (previsto)</span><b class="num">${brl(cash.total)}</b></div><div><span>Nas caixinhas</span><b class="num">${brl(bt)}</b></div></div>${xm&&!xm.m.closed&&cash.total<0?`<div class="hwarn">${ic("target")}<span>No ritmo previsto, ${mname} fecha negativo.</span></div>`:""}`,
     foot:readOnly?"":`<button data-act="adjust-saldo" style="color:inherit;display:flex;justify-content:space-between;width:100%;align-items:center;text-align:left;gap:8px"><span>Esqueceu de lançar algo? Ajustar saldo</span>${ic("arrow")}</button>`});
   B.kmeta=kpi({t:"Meta de guardar em "+mname,s:xm&&xm.m.closed?"Resultado real do mês":"Sobra prevista do mês",ico:"target",
       v:`<span class="${guard<0?"neg":""}">${brl(guard)}</span>${goal?` <span class="pill ${guard>=goal?"ok":"idle"}">${pct(goal?Math.max(0,guard)/goal:0)}</span>`:""}`,
@@ -2506,7 +2506,7 @@ function whoAmI(){return (window.__who&&window.__who())||S.ownerName||"Pedro"}
 function goalDepOf(g,mid){return (g.history||[]).filter(h=>(h.date||"").slice(0,7)===mid).reduce((a,h)=>a+(+h.value||0),0)}
 function goalDepIn(mid){return (S.goals||[]).reduce((t,g)=>t+goalDepOf(g,mid),0)}
 function goalAutoLeft(g,mid){const a=+g.auto||0;if(!a||mid<(g.autoStart||"0000-00")||(g.deadline&&mid>g.deadline)||goalInfo(g).done)return 0;return Math.max(0,a-Math.max(0,goalDepOf(g,mid)))}
-function boxIn(m){const dep=goalDepIn(m.id);if(m.closed||m.id<TODAY_M)return dep;return dep+(S.goals||[]).reduce((t,g)=>t+goalAutoLeft(g,m.id),0)}
+function boxIn(m){return goalDepIn(m.id)}
 function boxesTotal(){return (S.goals||[]).reduce((t,g)=>t+goalInfo(g).saved,0)}
 function boxCard(m){
   const gs=(S.goals||[]).filter(g=>!goalInfo(g).done||goalDepOf(g,m.id));if(!gs.length)return "";
